@@ -1,0 +1,35 @@
+name: Build iOS App
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build .ipa
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode Project
+        run: xcodegen generate
+
+      - name: Build App
+        run: |
+          xcodebuild clean build \
+            -project HanbookReader.xcodeproj \
+            -scheme HanbookReader \
+            -sdk iphoneos \
+            -configuration Release \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+          
+      # Note: Để xuất được file .ipa thật cài lên iPhone, 
+      # bạn sẽ cần setup Apple Developer Certificates và Provisioning Profiles ở bước này.
+      # Đoạn code trên sẽ test build mã nguồn xem có lỗi hay không.
