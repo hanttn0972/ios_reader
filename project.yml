@@ -1,6 +1,10 @@
 name: HanbookReader
 options:
   bundleIdPrefix: com.hanttn0972
+packages:
+  ZIPFoundation:
+    url: https://github.com/weichsel/ZIPFoundation.git
+    from: 0.9.19
 targets:
   HanbookReader:
     type: application
@@ -10,6 +14,7 @@ targets:
       - path: Sources
     dependencies:
       - sdk: libsqlite3.tbd
+      - package: ZIPFoundation
     info:
       path: Info.plist
       properties:
