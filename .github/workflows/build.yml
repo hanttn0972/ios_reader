@@ -25,7 +25,7 @@ jobs:
             -project HanbookReader.xcodeproj \
             -scheme HanbookReader \
             -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            -destination 'generic/platform=iOS Simulator' \
             -configuration Release
       # Note: Để xuất được file .ipa thật cài lên iPhone, 
       # bạn sẽ cần setup Apple Developer Certificates và Provisioning Profiles ở bước này.
