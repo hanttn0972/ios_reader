@@ -1,6 +1,7 @@
 import UIKit
+import WebKit
 
-class ReaderViewController: UIViewController {
+class ReaderViewController: UIViewController, WKNavigationDelegate {
 
     let bookTitle: String
     
@@ -8,15 +9,17 @@ class ReaderViewController: UIViewController {
     let bottomBar = UIVisualEffectView(effect: UIBlurEffect(style: .regular))
     
     // UI Elements
-    let scrollView = UIScrollView()
-    let contentView = UIView()
-    let titleLabel = UILabel()
-    let contentTextLabel = UILabel()
+    var webView: WKWebView!
     
+    let topBar = UIVisualEffectView(effect: UIBlurEffect(style: .regular)) // optional, or just transparent
     let backButton = UIButton(type: .system)
     let chapterPill = UIView()
     let chapterLabel = UILabel()
     let moreButton = UIButton(type: .system)
+    
+    // JS for theming
+    var isDarkMode = false
+    var currentFontSize = 100 // percent
     
     init(title: String) {
         self.bookTitle = title
@@ -29,11 +32,39 @@ class ReaderViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        setupWebView()
         setupUI()
+        loadSampleChapter()
+    }
+    
+    private func setupWebView() {
+        let preferences = WKWebpagePreferences()
+        preferences.allowsContentJavaScript = true
+        
+        let config = WKWebViewConfiguration()
+        config.defaultWebpagePreferences = preferences
+        
+        webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = self
+        // Set background to transparent to allow parent view's color to show
+        webView.backgroundColor = .clear
+        webView.isOpaque = false
+        // Add padding so text doesn't hide under the top/bottom bars
+        webView.scrollView.contentInset = UIEdgeInsets(top: 100, left: 0, bottom: 120, right: 0)
+        webView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(webView)
     }
     
     private func setupUI() {
         view.backgroundColor = UIColor(white: 0.94, alpha: 1.0)
+        
+        // --- Web View Constraints ---
+        NSLayoutConstraint.activate([
+            webView.topAnchor.constraint(equalTo: view.topAnchor),
+            webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            webView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
         
         // --- 1. Top Navigation ---
         backButton.setTitle("<", for: .normal)
@@ -61,49 +92,15 @@ class ReaderViewController: UIViewController {
         moreButton.layer.cornerRadius = 18
         moreButton.tintColor = .gray
         moreButton.translatesAutoresizingMaskIntoConstraints = false
+        moreButton.addTarget(self, action: #selector(didTapSettings), for: .touchUpInside)
         view.addSubview(moreButton)
         
-        // --- 2. Scrollable Text Content ---
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.showsVerticalScrollIndicator = false
-        view.addSubview(scrollView)
-        
-        contentView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(contentView)
-        
-        titleLabel.text = bookTitle
-        titleLabel.font = UIFont.systemFont(ofSize: 28, weight: .bold)
-        titleLabel.textColor = .black
-        titleLabel.numberOfLines = 0
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(titleLabel)
-        
-        contentTextLabel.text = """
-        Tunde had walked the old railway tracks behind his grandmother's house his whole childhood, but he had never gone past Mile Seven. People in the village said the air changed there. Others said the birds refused to sing. His grandmother only said he should mind his business and stay near.
-        
-        One dry Saturday afternoon, curiosity finally pushed him forward. He followed the tracks past the familiar mango trees, past the broken storage shed, and past the spot where the rails curved slightly like a bent spine. When he reached the rusted Mile Seven marker, he stopped. The air felt still, almost like the world was holding its breath. A lantern sat in the middle of the tracks. It was lit, even though no one was around. The flame inside glowed blue. Not sky blue or river blue, but a strange soft blue that looked like it could hum if it wanted to.
-        
-        Tunde picked it up. The moment his fingers touched the metal handle, the ground under him trembled. Not the kind of tremble that makes you scared, but the type that feels like a greeting.
-        """
-        contentTextLabel.font = UIFont.systemFont(ofSize: 17, weight: .regular)
-        contentTextLabel.textColor = UIColor(white: 0.3, alpha: 1.0)
-        contentTextLabel.numberOfLines = 0
-        // Line spacing
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.lineSpacing = 6
-        let attributedString = NSMutableAttributedString(string: contentTextLabel.text!)
-        attributedString.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSMakeRange(0, attributedString.length))
-        contentTextLabel.attributedText = attributedString
-        contentTextLabel.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(contentTextLabel)
-        
-        // --- 3. Glassmorphism Bottom Bar ---
+        // --- 2. Glassmorphism Bottom Bar ---
         bottomBar.layer.cornerRadius = 35
         bottomBar.clipsToBounds = true
         bottomBar.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(bottomBar)
         
-        // Add fake icons to bottom bar
         let stackView = UIStackView()
         stackView.axis = .horizontal
         stackView.distribution = .equalSpacing
@@ -111,13 +108,21 @@ class ReaderViewController: UIViewController {
         stackView.translatesAutoresizingMaskIntoConstraints = false
         bottomBar.contentView.addSubview(stackView)
         
-        let icons = ["📖", "💬", "🤍", "🪶"]
-        for icon in icons {
-            let btn = UIButton(type: .system)
-            btn.setTitle(icon, for: .normal)
-            btn.titleLabel?.font = UIFont.systemFont(ofSize: 22)
-            stackView.addArrangedSubview(btn)
-        }
+        // Buttons
+        let fontButton = UIButton(type: .system)
+        fontButton.setTitle("aA", for: .normal)
+        fontButton.titleLabel?.font = UIFont.systemFont(ofSize: 22, weight: .bold)
+        fontButton.addTarget(self, action: #selector(didTapFont), for: .touchUpInside)
+        
+        let themeButton = UIButton(type: .system)
+        themeButton.setTitle("🌙", for: .normal)
+        themeButton.titleLabel?.font = UIFont.systemFont(ofSize: 22)
+        themeButton.addTarget(self, action: #selector(didTapTheme), for: .touchUpInside)
+        
+        stackView.addArrangedSubview(UIButton(type: .system)) // spacer
+        stackView.addArrangedSubview(fontButton)
+        stackView.addArrangedSubview(themeButton)
+        stackView.addArrangedSubview(UIButton(type: .system)) // spacer
         
         // --- Constraints ---
         NSLayoutConstraint.activate([
@@ -140,38 +145,98 @@ class ReaderViewController: UIViewController {
             moreButton.widthAnchor.constraint(equalToConstant: 36),
             moreButton.heightAnchor.constraint(equalToConstant: 36),
             
-            scrollView.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: 10),
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            
-            contentView.topAnchor.constraint(equalTo: scrollView.topAnchor),
-            contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
-            contentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
-            contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-            contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
-            
-            titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
-            titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            titleLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            
-            contentTextLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
-            contentTextLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            contentTextLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            contentTextLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -150), // padding for bottom bar
-            
             bottomBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
             bottomBar.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             bottomBar.widthAnchor.constraint(equalToConstant: 260),
             bottomBar.heightAnchor.constraint(equalToConstant: 70),
             
-            stackView.leadingAnchor.constraint(equalTo: bottomBar.leadingAnchor, constant: 30),
-            stackView.trailingAnchor.constraint(equalTo: bottomBar.trailingAnchor, constant: -30),
+            stackView.leadingAnchor.constraint(equalTo: bottomBar.leadingAnchor, constant: 20),
+            stackView.trailingAnchor.constraint(equalTo: bottomBar.trailingAnchor, constant: -20),
             stackView.centerYAnchor.constraint(equalTo: bottomBar.centerYAnchor)
         ])
     }
     
+    private func loadSampleChapter() {
+        // Here we inject a base HTML structure simulating an EPUB chapter.
+        // We use JS and CSS to allow dynamic changes without reloading.
+        let html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+            <style>
+                :root {
+                    --bg-color: transparent;
+                    --text-color: #333333;
+                    --font-size: 100%;
+                }
+                body {
+                    background-color: var(--bg-color);
+                    color: var(--text-color);
+                    font-family: -apple-system, system-ui, sans-serif;
+                    font-size: var(--font-size);
+                    line-height: 1.6;
+                    padding: 20px;
+                    margin: 0;
+                    transition: all 0.3s ease;
+                }
+                h1 {
+                    font-size: 2em;
+                    margin-bottom: 20px;
+                }
+            </style>
+        </head>
+        <body>
+            <h1>\(bookTitle)</h1>
+            <p>Tunde had walked the old railway tracks behind his grandmother's house his whole childhood, but he had never gone past Mile Seven. People in the village said the air changed there. Others said the birds refused to sing. His grandmother only said he should mind his business and stay near.</p>
+            <p>One dry Saturday afternoon, curiosity finally pushed him forward. He followed the tracks past the familiar mango trees, past the broken storage shed, and past the spot where the rails curved slightly like a bent spine. When he reached the rusted Mile Seven marker, he stopped. The air felt still, almost like the world was holding its breath. A lantern sat in the middle of the tracks. It was lit, even though no one was around. The flame inside glowed blue.</p>
+            <p>Tunde picked it up. The moment his fingers touched the metal handle, the ground under him trembled. Not the kind of tremble that makes you scared, but the type that feels like a greeting.</p>
+            <p>...</p>
+            <p>(The EPUB HTML chapter will be rendered here natively).</p>
+        </body>
+        </html>
+        """
+        webView.loadHTMLString(html, baseURL: nil)
+    }
+    
     @objc func didTapBack() {
         navigationController?.popViewController(animated: true)
+    }
+    
+    @objc func didTapSettings() {
+        // Option menu
+    }
+    
+    @objc func didTapFont() {
+        currentFontSize += 15
+        if currentFontSize > 150 { currentFontSize = 100 }
+        
+        let js = "document.documentElement.style.setProperty('--font-size', '\\(currentFontSize)%');"
+        webView.evaluateJavaScript(js, completionHandler: nil)
+    }
+    
+    @objc func didTapTheme() {
+        isDarkMode.toggle()
+        
+        let textColor = isDarkMode ? "#E0E0E0" : "#333333"
+        view.backgroundColor = isDarkMode ? UIColor(white: 0.1, alpha: 1.0) : UIColor(white: 0.94, alpha: 1.0)
+        
+        let js = "document.documentElement.style.setProperty('--text-color', '\\(textColor)');"
+        webView.evaluateJavaScript(js, completionHandler: nil)
+        
+        // Update pills styling
+        let pillBg = isDarkMode ? UIColor(white: 0.2, alpha: 1.0) : .white
+        let iconTint = isDarkMode ? UIColor.white : .gray
+        
+        backButton.backgroundColor = pillBg
+        backButton.tintColor = iconTint
+        
+        chapterPill.backgroundColor = pillBg
+        chapterLabel.textColor = iconTint
+        
+        moreButton.backgroundColor = pillBg
+        moreButton.tintColor = iconTint
+        
+        bottomBar.effect = isDarkMode ? UIBlurEffect(style: .dark) : UIBlurEffect(style: .regular)
     }
 }
