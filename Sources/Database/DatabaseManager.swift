@@ -79,10 +79,10 @@ class DatabaseManager {
         
         if sqlite3_prepare_v2(db, queryStatementString, -1, &queryStatement, nil) == SQLITE_OK {
             while sqlite3_step(queryStatement) == SQLITE_ROW {
-                let id = String(cString: UnsafePointer<CChar>(OpaquePointer(sqlite3_column_text(queryStatement, 0))))
-                let title = String(cString: UnsafePointer<CChar>(OpaquePointer(sqlite3_column_text(queryStatement, 1))))
-                let author = String(cString: UnsafePointer<CChar>(OpaquePointer(sqlite3_column_text(queryStatement, 2))))
-                let filePath = String(cString: UnsafePointer<CChar>(OpaquePointer(sqlite3_column_text(queryStatement, 3))))
+                let id = getString(from: queryStatement, column: 0)
+                let title = getString(from: queryStatement, column: 1)
+                let author = getString(from: queryStatement, column: 2)
+                let filePath = getString(from: queryStatement, column: 3)
                 
                 var coverPath: String? = nil
                 if let coverCStr = sqlite3_column_text(queryStatement, 4) {
@@ -98,5 +98,12 @@ class DatabaseManager {
         }
         sqlite3_finalize(queryStatement)
         return books
+    }
+    
+    private func getString(from statement: OpaquePointer?, column: Int32) -> String {
+        guard let cString = sqlite3_column_text(statement, column) else {
+            return ""
+        }
+        return String(cString: UnsafePointer<CChar>(OpaquePointer(cString)))
     }
 }
