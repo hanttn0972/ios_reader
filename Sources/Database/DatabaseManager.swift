@@ -79,14 +79,14 @@ class DatabaseManager {
         
         if sqlite3_prepare_v2(db, queryStatementString, -1, &queryStatement, nil) == SQLITE_OK {
             while sqlite3_step(queryStatement) == SQLITE_ROW {
-                let id = String(cString: sqlite3_column_text(queryStatement, 0))
-                let title = String(cString: sqlite3_column_text(queryStatement, 1))
-                let author = String(cString: sqlite3_column_text(queryStatement, 2))
-                let filePath = String(cString: sqlite3_column_text(queryStatement, 3))
+                let id = String(cString: UnsafePointer<CChar>(OpaquePointer(sqlite3_column_text(queryStatement, 0))))
+                let title = String(cString: UnsafePointer<CChar>(OpaquePointer(sqlite3_column_text(queryStatement, 1))))
+                let author = String(cString: UnsafePointer<CChar>(OpaquePointer(sqlite3_column_text(queryStatement, 2))))
+                let filePath = String(cString: UnsafePointer<CChar>(OpaquePointer(sqlite3_column_text(queryStatement, 3))))
                 
                 var coverPath: String? = nil
                 if let coverCStr = sqlite3_column_text(queryStatement, 4) {
-                    coverPath = String(cString: coverCStr)
+                    coverPath = String(cString: UnsafePointer<CChar>(OpaquePointer(coverCStr)))
                 }
                 
                 let progress = sqlite3_column_double(queryStatement, 5)
