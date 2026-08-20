@@ -38,11 +38,11 @@ class ReaderViewController: UIViewController, WKNavigationDelegate {
     }
     
     private func setupWebView() {
-        let preferences = WKWebpagePreferences()
-        preferences.allowsContentJavaScript = true
+        let preferences = WKPreferences()
+        preferences.javaScriptEnabled = true
         
         let config = WKWebViewConfiguration()
-        config.defaultWebpagePreferences = preferences
+        config.preferences = preferences
         
         webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self
@@ -211,7 +211,7 @@ class ReaderViewController: UIViewController, WKNavigationDelegate {
         currentFontSize += 15
         if currentFontSize > 150 { currentFontSize = 100 }
         
-        let js = "document.documentElement.style.setProperty('--font-size', '\\(currentFontSize)%');"
+        let js = "document.documentElement.style.setProperty('--font-size', '\(currentFontSize)%');"
         webView.evaluateJavaScript(js, completionHandler: nil)
     }
     
@@ -221,7 +221,7 @@ class ReaderViewController: UIViewController, WKNavigationDelegate {
         let textColor = isDarkMode ? "#E0E0E0" : "#333333"
         view.backgroundColor = isDarkMode ? UIColor(white: 0.1, alpha: 1.0) : UIColor(white: 0.94, alpha: 1.0)
         
-        let js = "document.documentElement.style.setProperty('--text-color', '\\(textColor)');"
+        let js = "document.documentElement.style.setProperty('--text-color', '\(textColor)');"
         webView.evaluateJavaScript(js, completionHandler: nil)
         
         // Update pills styling
