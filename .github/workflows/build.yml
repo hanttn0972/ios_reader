@@ -24,9 +24,22 @@ jobs:
           xcodebuild clean build \
             -project HanbookReader.xcodeproj \
             -scheme HanbookReader \
-            -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
-            -configuration Release
-      # Note: Để xuất được file .ipa thật cài lên iPhone, 
-      # bạn sẽ cần setup Apple Developer Certificates và Provisioning Profiles ở bước này.
-      # Đoạn code trên sẽ test build mã nguồn xem có lỗi hay không.
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -configuration Release \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            SYMROOT=$PWD/build
+
+      - name: Package to .ipa
+        run: |
+          mkdir -p Payload
+          mv build/Release-iphoneos/HanbookReader.app Payload/
+          zip -qr HanbookReader.ipa Payload/
+
+      - name: Upload .ipa Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HanbookReader-iOS12
+          path: HanbookReader.ipa
